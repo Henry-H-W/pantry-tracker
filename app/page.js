@@ -1,113 +1,154 @@
-import Image from "next/image";
+'use client'
+import { Box, Stack, Typography, Button, Modal, TextField} from "@mui/material";
+import {firestore} from '@/firebase'
+import { collection, query, getDocs, getDoc, setDoc, doc, deleteDoc } from 'firebase/firestore'
+import { useEffect, useState } from "react";
+import * as React from 'react';
 
 export default function Home() {
+  const [addOpen, setAddOpen] = React.useState(false);
+  const handleAddOpen = () => setAddOpen(true);
+  const handleAddClose = () => setAddOpen(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const handleEditOpen = () => setEditOpen(true);
+  const handleEditClose = () => setEditOpen(false);
+  const [pantry, setPantry] = useState([]);
+  const [itemName, setItemName] = useState('');
+  const [editItem, setEditItemName] = useState('');
+  const [editQuantity, setEditQuantity] = useState(-1)
+  const [searchQuery, setSearchQueryName] = useState('');
+
+  const updatePantry = async (search='') => {
+    const snapshot = query(collection(firestore, 'pantry'))
+    const docs = await getDocs(snapshot)
+    const pantryList = []
+    docs.forEach((doc) => {
+      if(doc.id.startsWith(search))
+      pantryList.push({'name': doc.id, ...doc.data()})
+    })
+    setPantry(pantryList)
+  } 
+
+  useEffect(() => {
+    updatePantry()
+  }, [])
+  
+  const updateEdit = (item, number) => {
+    setEditItemName(item)
+    setEditQuantity(number)
+    setItemName(item)
+  }
+
+  const addItem = async (item) => {
+    item = item.toLowerCase()
+
+    const docRef = doc(collection(firestore, 'pantry'), item)
+    const docSnap = await getDoc(docRef)  
+
+    if(docSnap.exists()) {
+      const {count} = docSnap.data()
+      await setDoc(docRef, {count: count + 1})
+    }
+    else{
+      await setDoc(docRef, {count: 1})
+    }
+    updatePantry()
+  }
+
+  const removeItem = async (item) => {
+    await deleteDoc(doc(collection(firestore, 'pantry'), item))
+    updatePantry()
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <Box className='w-full v-full flex flex-col justify-center items-center gap-4 p-5'>
+      <Box className='flex flex-row justify-between w-full'>
+        <Box className='flex flex-row'>
+          <TextField label='Search' id='outlined-basic' value={searchQuery} variant='outlined' className="w-[600px]" onChange={(e) => {setSearchQueryName(e.target.value)}}></TextField>
+          <Button variant='contained' onClick={() => updatePantry(searchQuery)}>Search</Button>
+        </Box>
+        <Button variant='contained' onClick={handleAddOpen}>Add Item</Button>
+      </Box>
+      
+      {/* Add items modal */}
+      <Modal
+        open={addOpen}
+        onClose={handleAddClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box className='absolute top-1/2 left-1/2 w-[400px] bg-white p-4 shadow-lg translate -translate-x-1/2 -translate-y-1/2 flex flex-col gap-3'>
+          <Typography id="modal-modal-title" variant="h6" component="h2">
+            Add item
+          </Typography>
+          <Stack className="flex flex-row w-full gap-2">
+            <TextField label='Item' id='outlined-basic' value={itemName} variant='outlined' className="w-full" onChange={(e) => {setItemName(e.target.value)}}></TextField>
+            <Button variant='outlined' onClick={() => {
+              addItem(itemName)
+              setItemName('')
+              handleAddClose()
+            }}>
+              Add
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      {/* Edit items modal */}
+      <Modal
+        open={editOpen}
+        onClose={handleEditClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box className='absolute top-1/2 left-1/2 w-[400px] bg-white p-4 shadow-lg translate -translate-x-1/2 -translate-y-1/2 flex flex-col gap-3'>
+          <Typography id="modal-modal-title" variant="h6" component="h2">
+            Edit item
+          </Typography>
+          <Stack className="flex flex-col w-full gap-2">
+            <Box className='gap-4 flex flex-col'>
+              <TextField label='Item' id='outlined-basic' value={editItem} variant='outlined' className="w-full" onChange={(e) => {setEditItemName(e.target.value)}}></TextField>
+              <TextField type='number' label='Quantity' id='outlined-basic' value={editQuantity} variant='outlined' className="w-full" onChange={(e) => {setEditQuantity(e.target.value)}}></TextField>
+            </Box>
+            <Box className='flex flex-row w-full gap-2 justify-center'>
+              <Button colour='error' variant='outlined' className='px-7' onClick={() => {
+                setItemName('')
+                removeItem(itemName)
+                handleEditClose()
+              }}>
+                Remove
+              </Button>
+              <Button variant='outlined' className='px-7' onClick={() => {
+                removeItem(itemName)
+                addItem(editItem, editQuantity)
+                setItemName('')
+                handleEditClose()
+              }}>
+                Confirm
+              </Button>
+            </Box>
+          </Stack>
+        </Box>
+      </Modal>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      <Box className='border border-gray-800 h-[500px] w-full'>
+        <Box className='w-full h-[100px] bg-[#c1b6ff] flex justify-center items-center'>
+          <Typography variant={'h2'} color='#333' textAlign='center'>Pantry Items</Typography>
+        </Box>
+        <Stack className='w-full h-full gap-2 overflow-auto'>
+          {pantry.map(({name, count}) => (
+            <Stack className="flex flex-row justify-between" key={name}>
+              <Box className='w-full min-h-[100px] flex flex-col px-12 bg-[#f0f0f0]'>
+                <Typography variant={'h3'} color='#333' textAlign='center'>{name.charAt(0).toUpperCase() +  name.slice(1) + " " + count}</Typography>
+              </Box>
+              <Button variant='contained' onClick={() => {
+                updateEdit(name, count)
+                handleEditOpen()
+              }}>Edit</Button>
+            </Stack>
+            ))}
+        </Stack>
+      </Box>
+    </Box>
   );
 }
