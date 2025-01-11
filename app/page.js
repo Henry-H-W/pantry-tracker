@@ -22,6 +22,7 @@ export default function Home() {
     const snapshot = query(collection(firestore, 'pantry'))
     const docs = await getDocs(snapshot)
     const pantryList = []
+    search = search.toLowerCase()
     docs.forEach((doc) => {
       if(doc.id.startsWith(search))
       pantryList.push({'name': doc.id, ...doc.data()})
@@ -39,7 +40,7 @@ export default function Home() {
     setItemName(item)
   }
 
-  const addItem = async (item) => {
+  const addItem = async (item, quantity) => {
     item = item.toLowerCase()
 
     const docRef = doc(collection(firestore, 'pantry'), item)
@@ -50,7 +51,7 @@ export default function Home() {
       await setDoc(docRef, {count: count + 1})
     }
     else{
-      await setDoc(docRef, {count: 1})
+      await setDoc(docRef, {count: quantity})
     }
     updatePantry()
   }
@@ -62,7 +63,7 @@ export default function Home() {
 
   return (
     <Box className='w-full v-full flex flex-col justify-center items-center gap-4 p-5'>
-      <Box className='flex flex-row justify-between w-full'>
+      <Box className='flex flex-row justify-between min-w-[1200px]'>
         <Box className='flex flex-row'>
           <TextField label='Search' id='outlined-basic' value={searchQuery} variant='outlined' className="w-[600px]" onChange={(e) => {setSearchQueryName(e.target.value)}}></TextField>
           <Button variant='contained' onClick={() => updatePantry(searchQuery)}>Search</Button>
@@ -84,7 +85,7 @@ export default function Home() {
           <Stack className="flex flex-row w-full gap-2">
             <TextField label='Item' id='outlined-basic' value={itemName} variant='outlined' className="w-full" onChange={(e) => {setItemName(e.target.value)}}></TextField>
             <Button variant='outlined' onClick={() => {
-              addItem(itemName)
+              addItem(itemName, 1)
               setItemName('')
               handleAddClose()
             }}>
@@ -131,15 +132,16 @@ export default function Home() {
         </Box>
       </Modal>
 
-      <Box className='border border-gray-800 h-[500px] w-full'>
-        <Box className='w-full h-[100px] bg-[#c1b6ff] flex justify-center items-center'>
+      <Box className='border border-gray-800 h-[605px] min-w-[1200px]'>
+        <Box className='w-full h-[100px] bg-[#b6caff] flex justify-center items-center'>
           <Typography variant={'h2'} color='#333' textAlign='center'>Pantry Items</Typography>
         </Box>
-        <Stack className='w-full h-full gap-2 overflow-auto'>
+        <Stack className='w-full h-[500px] gap-2 overflow-auto'>
           {pantry.map(({name, count}) => (
             <Stack className="flex flex-row justify-between" key={name}>
-              <Box className='w-full min-h-[100px] flex flex-col px-12 bg-[#f0f0f0]'>
-                <Typography variant={'h3'} color='#333' textAlign='center'>{name.charAt(0).toUpperCase() +  name.slice(1) + " " + count}</Typography>
+              <Box className='w-full min-h-[100px] flex flex-col px-12 bg-[#e6f1fd] rounded-lg border border-blue-200 justify-center'>
+                <Typography variant={'h4'} color='#333' textAlign='left'>{name.charAt(0).toUpperCase() +  name.slice(1)}</Typography>
+                <Typography variant={'h5'} color='#333' textAlign='left'>Quantity: {count}</Typography>
               </Box>
               <Button variant='contained' onClick={() => {
                 updateEdit(name, count)
